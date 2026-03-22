@@ -1,0 +1,279 @@
+name: ipvibes
+description: Ipvibes IPTV App
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.1.0
+  video_player: ^2.8.1
+  chewie: ^1.7.1
+  shared_preferences: ^2.2.2
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+const String SERVER_URL = 'http://line.ipvibes.com';
+
+void main() {
+  runApp(IpvibesApp());
+}
+
+class IpvibesApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Ipvibes',
+      theme: ThemeData(
+        primaryColor: Color(0xFF1a1a2e),
+        scaffoldBackgroundColor: Color(0xFF1a1a2e),
+        colorScheme: ColorScheme.dark(
+          primary: Color(0xFFe94560),
+          secondary: Color(0xFF0f3460),
+        ),
+      ),
+      home: LoginScreen(),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+class LoginScreen extends StatefulWidget {
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  String _errorMessage = '';
+
+  Future<void> _login() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (username.isEmpty || password.isEmpty) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Veuillez remplir tous les champs';
+      });
+      return;
+    }
+
+    try {
+      final url = '$SERVER_URL/player_api.php?username=$username&password=$password';
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['user_info'] != null && data['user_info']['auth'] == 1) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChannelListScreen(
+                username: username,
+                password: password,
+              ),
+            ),
+          );
+        } else {
+          setState(() {
+            _errorMessage = 'Identifiants incorrects';
+          });
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'Erreur de connexion au serveur';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Impossible de se connecter. Vérifiez votre connexion.';
+      });
+    }
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'IPVIBES',
+                style: TextStyle(
+                  fontSize: 42,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFe94560),
+                  letterSpacing: 6,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Votre TV, partout',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 14,
+                ),
+              ),
+              SizedBox(height: 48),
+              TextField(
+                controller: _usernameController,
+                style: TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Identifiant',
+                  labelStyle: TextStyle(color: Colors.white54),
+                  filled: true,
+                  fillColor: Color(0xFF0f3460),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  prefixIcon: Icon(Icons.person, color: Color(0xFFe94560)),
+                ),
+              ),
+              SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                style: TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Mot de passe',
+                  labelStyle: TextStyle(color: Colors.white54),
+                  filled: true,
+                  fillColor: Color(0xFF0f3460),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  prefixIcon: Icon(Icons.lock, color: Color(0xFFe94560)),
+                ),
+              ),
+              if (_errorMessage.isNotEmpty) ...[
+                SizedBox(height: 16),
+                Text(
+                  _errorMessage,
+                  style: TextStyle(color: Color(0xFFe94560)),
+                ),
+              ],
+              SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFFe94560),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? CircularProgressIndicator(color: Colors.white)
+                      : Text(
+                          'Se connecter',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ChannelListScreen extends StatefulWidget {
+  final String username;
+  final String password;
+
+  ChannelListScreen({required this.username, required this.password});
+
+  @override
+  _ChannelListScreenState createState() => _ChannelListScreenState();
+}
+
+class _ChannelListScreenState extends State<ChannelListScreen> {
+  List<dynamic> _channels = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChannels();
+  }
+
+  Future<void> _loadChannels() async {
+    try {
+      final url =
+          '$SERVER_URL/player_api.php?username=${widget.username}&password=${widget.password}&action=get_live_streams';
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        setState(() {
+          _channels = json.decode(response.body);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('IPVIBES', style: TextStyle(color: Color(0xFFe94560), fontWeight: FontWeight.bold)),
+        backgroundColor: Color(0xFF0f3460),
+      ),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(color: Color(0xFFe94560)))
+          : ListView.builder(
+              itemCount: _channels.length,
+              itemBuilder: (context, index) {
+                final channel = _channels[index];
+                return ListTile(
+                  leading: channel['stream_icon'] != null && channel['stream_icon'].isNotEmpty
+                      ? Image.network(channel['stream_icon'], width: 40, height: 40, errorBuilder: (c, e, s) => Icon(Icons.tv, color: Color(0xFFe94560)))
+                      : Icon(Icons.tv, color: Color(0xFFe94560)),
+                  title: Text(channel['name'] ?? 'Chaîne', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    final streamUrl =
+                        '$SERVER_URL/live/${widget.username}/${widget.password}/${channel['stream_id']}.m3u8';
+                    // Lecture à implémenter
+                  },
+                );
+              },
+            ),
+    );
+  }
+}
