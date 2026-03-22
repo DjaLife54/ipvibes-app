@@ -1,0 +1,39 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace "com.ipvibes.app"
+    compileSdk flutter.compileSdkVersion
+    ndkVersion flutter.ndkVersion
+
+    defaultConfig {
+        applicationId "com.ipvibes.app"
+        minSdk 21
+        targetSdk flutter.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+        }
+    }
+}
+
+flutter {
+    source "../.."
+}
+```
+
+Clique **"Commit changes"**.
+
+---
+
+Maintenant **un dernier fichier**. **"Add file" → "Create new file"** et tape :
+```
+android/app/src/main/AndroidManifest.xml
